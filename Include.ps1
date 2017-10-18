@@ -7,77 +7,107 @@ function Set-Stat {
         [Parameter(Mandatory = $true)]
         [Double]$Value, 
         [Parameter(Mandatory = $false)]
-        [DateTime]$Date = (Get-Date)
+        [DateTime]$Updated = (Get-Date).ToUniversalTime(), 
+        [Parameter(Mandatory = $true)]
+        [TimeSpan]$Duration, 
+        [Parameter(Mandatory = $false)]
+        [Bool]$FaultDetection = $false, 
+        [Parameter(Mandatory = $false)]
+        [Bool]$ChangeDetection = $false
     )
 
+    $Updated = $Updated.ToUniversalTime()
+
     $Path = "Stats\$Name.txt"
-    $Date = $Date.ToUniversalTime()
     $SmallestValue = 1E-20
 
-    $Stat = [PSCustomObject]@{
-        Live = $Value
-        Minute = $Value
-        Minute_Fluctuation = 1 / 2
-        Minute_5 = $Value
-        Minute_5_Fluctuation = 1 / 2
-        Minute_10 = $Value
-        Minute_10_Fluctuation = 1 / 2
-        Hour = $Value
-        Hour_Fluctuation = 1 / 2
-        Day = $Value
-        Day_Fluctuation = 1 / 2
-        Week = $Value
-        Week_Fluctuation = 1 / 2
-        Updated = $Date
+    try {
+        $Stat = Get-Content $Path -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+
+        $Stat = [PSCustomObject]@{
+            Live = [Double]$Stat.Live
+            Minute = [Double]$Stat.Minute
+            Minute_Fluctuation = [Double]$Stat.Minute_Fluctuation
+            Minute_5 = [Double]$Stat.Minute_5
+            Minute_5_Fluctuation = [Double]$Stat.Minute_5_Fluctuation
+            Minute_10 = [Double]$Stat.Minute_10
+            Minute_10_Fluctuation = [Double]$Stat.Minute_10_Fluctuation
+            Hour = [Double]$Stat.Hour
+            Hour_Fluctuation = [Double]$Stat.Hour_Fluctuation
+            Day = [Double]$Stat.Day
+            Day_Fluctuation = [Double]$Stat.Day_Fluctuation
+            Week = [Double]$Stat.Week
+            Week_Fluctuation = [Double]$Stat.Week_Fluctuation
+            Duration = [TimeSpan]$Stat.Duration
+            Updated = [DateTime]$Stat.Updated
+        }
+
+        $ToleranceMin = $Value
+        $ToleranceMax = $Value
+
+        if ($FaultDetection) {
+            $ToleranceMin = $Stat.Week * (1 - [Math]::Min([Math]::Max($Stat.Week_Fluctuation * 2, 0.1), 0.9))
+            $ToleranceMax = $Stat.Week * (1 + [Math]::Min([Math]::Max($Stat.Week_Fluctuation * 2, 0.1), 0.9))
+        }
+
+        if ($ChangeDetection -and $Value -eq $Stat.Live) {$Updated -eq $Stat.updated}
+
+        if ($Value -lt $ToleranceMin -or $Value -gt $ToleranceMax) {
+            Write-Warning "Stat file ($Name) was not updated because the value ($([Decimal]$Value)) is outside fault tolerance. "
+        }
+        else {
+            $Span_Minute = [Math]::Min($Duration.TotalMinutes / [Math]::Min($Stat.Duration.TotalMinutes, 1), 1)
+            $Span_Minute_5 = [Math]::Min(($Duration.TotalMinutes / 5) / [Math]::Min(($Stat.Duration.TotalMinutes / 5), 1), 1)
+            $Span_Minute_10 = [Math]::Min(($Duration.TotalMinutes / 10) / [Math]::Min(($Stat.Duration.TotalMinutes / 10), 1), 1)
+            $Span_Hour = [Math]::Min($Duration.TotalHours / [Math]::Min($Stat.Duration.TotalHours, 1), 1)
+            $Span_Day = [Math]::Min($Duration.TotalDays / [Math]::Min($Stat.Duration.TotalDays, 1), 1)
+            $Span_Week = [Math]::Min(($Duration.TotalDays / 7) / [Math]::Min(($Stat.Duration.TotalDays / 7), 1), 1)
+
+            $Stat = [PSCustomObject]@{
+                Live = $Value
+                Minute = ((1 - $Span_Minute) * $Stat.Minute) + ($Span_Minute * $Value)
+                Minute_Fluctuation = ((1 - $Span_Minute) * $Stat.Minute_Fluctuation) + 
+                ($Span_Minute * ([Math]::Abs($Value - $Stat.Minute) / [Math]::Max([Math]::Abs($Stat.Minute), $SmallestValue)))
+                Minute_5 = ((1 - $Span_Minute_5) * $Stat.Minute_5) + ($Span_Minute_5 * $Value)
+                Minute_5_Fluctuation = ((1 - $Span_Minute_5) * $Stat.Minute_5_Fluctuation) + 
+                ($Span_Minute_5 * ([Math]::Abs($Value - $Stat.Minute_5) / [Math]::Max([Math]::Abs($Stat.Minute_5), $SmallestValue)))
+                Minute_10 = ((1 - $Span_Minute_10) * $Stat.Minute_10) + ($Span_Minute_10 * $Value)
+                Minute_10_Fluctuation = ((1 - $Span_Minute_10) * $Stat.Minute_10_Fluctuation) + 
+                ($Span_Minute_10 * ([Math]::Abs($Value - $Stat.Minute_10) / [Math]::Max([Math]::Abs($Stat.Minute_10), $SmallestValue)))
+                Hour = ((1 - $Span_Hour) * $Stat.Hour) + ($Span_Hour * $Value)
+                Hour_Fluctuation = ((1 - $Span_Hour) * $Stat.Hour_Fluctuation) + 
+                ($Span_Hour * ([Math]::Abs($Value - $Stat.Hour) / [Math]::Max([Math]::Abs($Stat.Hour), $SmallestValue)))
+                Day = ((1 - $Span_Day) * $Stat.Day) + ($Span_Day * $Value)
+                Day_Fluctuation = ((1 - $Span_Day) * $Stat.Day_Fluctuation) + 
+                ($Span_Day * ([Math]::Abs($Value - $Stat.Day) / [Math]::Max([Math]::Abs($Stat.Day), $SmallestValue)))
+                Week = ((1 - $Span_Week) * $Stat.Week) + ($Span_Week * $Value)
+                Week_Fluctuation = ((1 - $Span_Week) * $Stat.Week_Fluctuation) + 
+                ($Span_Week * ([Math]::Abs($Value - $Stat.Week) / [Math]::Max([Math]::Abs($Stat.Week), $SmallestValue)))
+                Duration = $Stat.Duration + $Duration
+                Updated = (Get-Date).ToUniversalTime()
+            }
+        }
     }
+    catch {
+        if (Test-Path $Path) {Write-Warning "Stat file ($Name) is corrupt and will be reset. "}
 
-    if (Test-Path $Path) {$Stat = Get-Content $Path | ConvertFrom-Json}
-
-    $Stat = [PSCustomObject]@{
-        Live = [Double]$Stat.Live
-        Minute = [Double]$Stat.Minute
-        Minute_Fluctuation = [Double]$Stat.Minute_Fluctuation
-        Minute_5 = [Double]$Stat.Minute_5
-        Minute_5_Fluctuation = [Double]$Stat.Minute_5_Fluctuation
-        Minute_10 = [Double]$Stat.Minute_10
-        Minute_10_Fluctuation = [Double]$Stat.Minute_10_Fluctuation
-        Hour = [Double]$Stat.Hour
-        Hour_Fluctuation = [Double]$Stat.Hour_Fluctuation
-        Day = [Double]$Stat.Day
-        Day_Fluctuation = [Double]$Stat.Day_Fluctuation
-        Week = [Double]$Stat.Week
-        Week_Fluctuation = [Double]$Stat.Week_Fluctuation
-        Updated = [DateTime]$Stat.Updated
-    }
-    
-    $Span_Minute = [Math]::Min(($Date - $Stat.Updated).TotalMinutes, 1)
-    $Span_Minute_5 = [Math]::Min((($Date - $Stat.Updated).TotalMinutes / 5), 1)
-    $Span_Minute_10 = [Math]::Min((($Date - $Stat.Updated).TotalMinutes / 10), 1)
-    $Span_Hour = [Math]::Min(($Date - $Stat.Updated).TotalHours, 1)
-    $Span_Day = [Math]::Min(($Date - $Stat.Updated).TotalDays, 1)
-    $Span_Week = [Math]::Min((($Date - $Stat.Updated).TotalDays / 7), 1)
-
-    $Stat = [PSCustomObject]@{
-        Live = $Value
-        Minute = ((1 - $Span_Minute) * $Stat.Minute) + ($Span_Minute * $Value)
-        Minute_Fluctuation = ((1 - $Span_Minute) * $Stat.Minute_Fluctuation) + 
-        ($Span_Minute * ([Math]::Abs($Value - $Stat.Minute) / [Math]::Max([Math]::Abs($Stat.Minute), $SmallestValue)))
-        Minute_5 = ((1 - $Span_Minute_5) * $Stat.Minute_5) + ($Span_Minute_5 * $Value)
-        Minute_5_Fluctuation = ((1 - $Span_Minute_5) * $Stat.Minute_5_Fluctuation) + 
-        ($Span_Minute_5 * ([Math]::Abs($Value - $Stat.Minute_5) / [Math]::Max([Math]::Abs($Stat.Minute_5), $SmallestValue)))
-        Minute_10 = ((1 - $Span_Minute_10) * $Stat.Minute_10) + ($Span_Minute_10 * $Value)
-        Minute_10_Fluctuation = ((1 - $Span_Minute_10) * $Stat.Minute_10_Fluctuation) + 
-        ($Span_Minute_10 * ([Math]::Abs($Value - $Stat.Minute_10) / [Math]::Max([Math]::Abs($Stat.Minute_10), $SmallestValue)))
-        Hour = ((1 - $Span_Hour) * $Stat.Hour) + ($Span_Hour * $Value)
-        Hour_Fluctuation = ((1 - $Span_Hour) * $Stat.Hour_Fluctuation) + 
-        ($Span_Hour * ([Math]::Abs($Value - $Stat.Hour) / [Math]::Max([Math]::Abs($Stat.Hour), $SmallestValue)))
-        Day = ((1 - $Span_Day) * $Stat.Day) + ($Span_Day * $Value)
-        Day_Fluctuation = ((1 - $Span_Day) * $Stat.Day_Fluctuation) + 
-        ($Span_Day * ([Math]::Abs($Value - $Stat.Day) / [Math]::Max([Math]::Abs($Stat.Day), $SmallestValue)))
-        Week = ((1 - $Span_Week) * $Stat.Week) + ($Span_Week * $Value)
-        Week_Fluctuation = ((1 - $Span_Week) * $Stat.Week_Fluctuation) + 
-        ($Span_Week * ([Math]::Abs($Value - $Stat.Week) / [Math]::Max([Math]::Abs($Stat.Week), $SmallestValue)))
-        Updated = $Date
+        $Stat = [PSCustomObject]@{
+            Live = $Value
+            Minute = $Value
+            Minute_Fluctuation = 1
+            Minute_5 = $Value
+            Minute_5_Fluctuation = 1
+            Minute_10 = $Value
+            Minute_10_Fluctuation = 1
+            Hour = $Value
+            Hour_Fluctuation = 1
+            Day = $Value
+            Day_Fluctuation = 1
+            Week = $Value
+            Week_Fluctuation = 1
+            Duration = $Duration
+            Updated = (Get-Date).ToUniversalTime()
+        }
     }
 
     if (-not (Test-Path "Stats")) {New-Item "Stats" -ItemType "directory"}
@@ -95,6 +125,7 @@ function Set-Stat {
         Day_Fluctuation = [Double]$Stat.Day_Fluctuation
         Week = [Decimal]$Stat.Week
         Week_Fluctuation = [Double]$Stat.Week_Fluctuation
+        Duration = [String]$Stat.Duration
         Updated = [DateTime]$Stat.Updated
     } | ConvertTo-Json | Set-Content $Path
 
@@ -106,7 +137,7 @@ function Get-Stat {
         [Parameter(Mandatory = $true)]
         [String]$Name
     )
-    
+
     if (-not (Test-Path "Stats")) {New-Item "Stats" -ItemType "directory"}
     Get-ChildItem "Stats" | Where-Object Extension -NE ".ps1" | Where-Object BaseName -EQ $Name | Get-Content | ConvertFrom-Json
 }
@@ -130,7 +161,7 @@ function Get-ChildItemContent {
             [PSCustomObject]@{Name = $Name; Content = $_}
         }
     }
-    
+
     $ChildItems | ForEach-Object {
         $Item = $_
         $ItemKeys = $Item.Content.PSObject.Properties.Name.Clone()
@@ -149,30 +180,10 @@ function Get-ChildItemContent {
             }
         }
     }
-    
+
     $ChildItems
 }
-<#
-function Set-Algorithm {
-    param(
-        [Parameter(Mandatory=$true)]
-        [String]$API, 
-        [Parameter(Mandatory=$true)]
-        [Int]$Port, 
-        [Parameter(Mandatory=$false)]
-        [Array]$Parameters = @()
-    )
-    
-    $Server = "localhost"
-    
-    switch($API)
-    {
-        "nicehash"
-        {
-        }
-    }
-}
-#>
+
 function Get-HashRate {
     param(
         [Parameter(Mandatory = $true)]
@@ -184,10 +195,10 @@ function Get-HashRate {
         [Parameter(Mandatory = $false)]
         [Bool]$Safe = $false
     )
-    
+
     $Server = "localhost"
     $Timeout = 10 #seconds
-    
+
     $Multiplier = 1000
     $Delta = 0.05
     $Interval = 5
@@ -198,7 +209,7 @@ function Get-HashRate {
         switch ($API) {
             "xgminer" {
                 $Message = @{command = "summary"; parameter = ""} | ConvertTo-Json -Compress
-            
+
                 do {
                     $Client = New-Object System.Net.Sockets.TcpClient $server, $port
                     $Writer = New-Object System.IO.StreamWriter $Client.GetStream()
@@ -280,9 +291,9 @@ function Get-HashRate {
                     $Request = $Reader.ReadLine()
 
                     $Data = $Request | ConvertFrom-Json
-                
+
                     $HashRate = $Data.result.speed_hps
-                    
+
                     if ($HashRate -eq $null) {$HashRate = $Data.result.speed_sps}
 
                     if ($HashRate -eq $null) {$HashRates = @(); break}
@@ -309,7 +320,7 @@ function Get-HashRate {
                     $Request = $Reader.ReadLine()
 
                     $Data = $Request | ConvertFrom-Json
-                
+
                     $HashRate = $Data.algorithms.workers.speed
 
                     if ($HashRate -eq $null) {$HashRates = @(); break}
@@ -336,7 +347,7 @@ function Get-HashRate {
                     $Request = $Reader.ReadLine()
 
                     $Data = $Request | ConvertFrom-Json
-                
+
                     $HashRate = $Data.result.speed_sps
 
                     if ($HashRate -eq $null) {$HashRates = @(); break}
@@ -351,9 +362,9 @@ function Get-HashRate {
             "claymore" {
                 do {
                     $Request = Invoke-WebRequest "http://$($Server):$Port" -UseBasicParsing -TimeoutSec $Timeout
-                    
+
                     $Data = $Request.Content.Substring($Request.Content.IndexOf("{"), $Request.Content.LastIndexOf("}") - $Request.Content.IndexOf("{") + 1) | ConvertFrom-Json
-                    
+
                     $HashRate = $Data.result[2].Split(";")[0]
                     $HashRate_Dual = $Data.result[4].Split(";")[0]
 
@@ -370,9 +381,9 @@ function Get-HashRate {
             "fireice" {
                 do {
                     $Request = Invoke-WebRequest "http://$($Server):$Port/h" -UseBasicParsing -TimeoutSec $Timeout
-                    
+
                     $Data = $Request.Content -split "</tr>" -match "total*" -split "<td>" -replace "<[^>]*>", ""
-                    
+
                     $HashRate = $Data[1]
                     if ($HashRate -eq "") {$HashRate = $Data[2]}
                     if ($HashRate -eq "") {$HashRate = $Data[3]}
@@ -389,9 +400,9 @@ function Get-HashRate {
             "prospector" {
                 do {
                     $Request = Invoke-WebRequest "http://$($Server):$Port/api/v0/hashrates" -UseBasicParsing -TimeoutSec $Timeout
-                    
+
                     $Data = $Request | ConvertFrom-Json
-                    
+
                     $HashRate = $Data.rate
 
                     if ($HashRate -eq $null) {$HashRates = @(); break}
@@ -406,7 +417,7 @@ function Get-HashRate {
             "wrapper" {
                 do {
                     $HashRate = Get-Content ".\Wrapper_$Port.txt" -ErrorAction Ignore | ConvertFrom-Json
-                
+
                     if ($HashRate -eq $null) {Start-Sleep $Interval; $HashRate = Get-Content ".\Wrapper_$Port.txt" | ConvertFrom-Json}
 
                     if ($HashRate -eq $null) {$HashRates = @(); break}
@@ -481,8 +492,13 @@ function Start-SubProcess {
         [Parameter(Mandatory = $false)]
         [String]$ArgumentList = "", 
         [Parameter(Mandatory = $false)]
-        [String]$WorkingDirectory = ""
+        [String]$WorkingDirectory = "", 
+        [ValidateRange(-2, 3)]
+        [Parameter(Mandatory = $false)]
+        [Int]$Priority = 0
     )
+
+    $PriorityNames = [PSCustomObject]@{-2 = "Idle"; -1 = "BelowNormal"; 0 = "Normal"; 1 = "AboveNormal"; 2 = "High"; 3 = "RealTime"}
 
     $Job = Start-Job -ArgumentList $PID, $FilePath, $ArgumentList, $WorkingDirectory {
         param($ControllerProcessID, $FilePath, $ArgumentList, $WorkingDirectory)
@@ -502,7 +518,7 @@ function Start-SubProcess {
         }
 
         [PSCustomObject]@{ProcessId = $Process.Id; ProcessHandle = $Process.Handle}
-        
+
         $ControllerProcess.Handle | Out-Null
         $Process.Handle | Out-Null
 
@@ -516,6 +532,8 @@ function Start-SubProcess {
     $Process = Get-Process | Where-Object Id -EQ $JobOutput.ProcessId
     $Process.Handle | Out-Null
     $Process
+
+    $Process.PriorityClass = $PriorityNames.$Priority
 }
 
 function Expand-WebRequest {
@@ -535,7 +553,7 @@ function Expand-WebRequest {
     if (Test-Path "$(Split-Path $Path)\$FolderName_Old") {Remove-Item "$(Split-Path $Path)\$FolderName_Old" -Recurse}
 
     Invoke-WebRequest $Uri -OutFile $FileName -UseBasicParsing
-    Start-Process "7z" "x $FileName -o$(Split-Path $Path)\$FolderName_Old -y -spe" -Wait
+    Start-Process "7z" "x `"$FileName`" -o`"$(Split-Path $Path)\$FolderName_Old`" -y -spe" -Wait
     if (Get-ChildItem "$(Split-Path $Path)\$FolderName_Old" | Where-Object PSIsContainer -EQ $false) {
         Rename-Item "$(Split-Path $Path)\$FolderName_Old" "$FolderName_New"
     }
@@ -550,7 +568,7 @@ function Get-Algorithm {
         [Parameter(Mandatory = $true)]
         [String]$Algorithm
     )
-    
+
     $Algorithms = Get-Content "Algorithms.txt" | ConvertFrom-Json
 
     $Algorithm = (Get-Culture).TextInfo.ToTitleCase(($Algorithm -replace "-", " " -replace "_", " ")) -replace " "
@@ -564,7 +582,7 @@ function Get-Region {
         [Parameter(Mandatory = $true)]
         [String]$Location
     )
-    
+
     $Locations = Get-Content "Regions.txt" | ConvertFrom-Json
 
     $Location = (Get-Culture).TextInfo.ToTitleCase(($Location -replace "-", " " -replace "_", " ")) -replace " "

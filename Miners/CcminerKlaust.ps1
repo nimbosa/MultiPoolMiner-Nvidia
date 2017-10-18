@@ -1,7 +1,7 @@
 ﻿. .\Include.ps1
 
 $Path = ".\Bin\NVIDIA-KlausT\ccminer.exe"
-$Uri = "https://github.com/KlausT/ccminer/releases/download/8.11/ccminer-811-x64.zip"
+$Uri = "https://github.com/KlausT/ccminer/releases/download/8.13/ccminer-813-x64.zip"
 
 $Name = (Get-Item $script:MyInvocation.MyCommand.Path).BaseName
 
@@ -11,7 +11,7 @@ $Commands = [PSCustomObject]@{
     #"blakecoin" = "" #Blakecoin
     #"vanilla" = "" #BlakeVanilla
     #"c11" = "" #C11
-    #"cryptonight" = "" #Cryptonight
+    #"cryptonight" = "" #CryptoNight
     #"decred" = "" #Decred
     #"equihash" = "" #Equihash
     #"ethash" = "" #Ethash
@@ -48,8 +48,8 @@ $Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty 
     [PSCustomObject]@{
         Type = "NVIDIA"
         Path = $Path
-        Arguments = "-a $_ -o stratum+tcp://$($Pools.(Get-Algorithm($_)).Host):$($Pools.(Get-Algorithm($_)).Port) -u $($Pools.(Get-Algorithm($_)).User) -p $($Pools.(Get-Algorithm($_)).Pass)$($Commands.$_)"
-        HashRates = [PSCustomObject]@{(Get-Algorithm($_)) = $Stats."$($Name)_$(Get-Algorithm($_))_HashRate".Week}
+        Arguments = "-a $_ -o stratum+tcp://$($Pools.(Get-Algorithm $_).Host):$($Pools.(Get-Algorithm $_).Port) -u $($Pools.(Get-Algorithm $_).User) -p $($Pools.(Get-Algorithm $_).Pass)$($Commands.$_)"
+        HashRates = [PSCustomObject]@{(Get-Algorithm $_) = $Stats."$($Name)_$(Get-Algorithm $_)_HashRate".Week}
         API = "Ccminer"
         Port = 4068
         Wrap = $false

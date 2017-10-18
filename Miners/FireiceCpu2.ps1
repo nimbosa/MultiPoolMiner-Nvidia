@@ -1,16 +1,16 @@
 ﻿. .\Include.ps1
 
 $Threads = 2
-$Path_Threads = ".\Bin\Cryptonight-CPU$Threads\xmr-stak-cpu.exe"
+$Path_Threads = ".\Bin\CryptoNight-CPU$Threads\xmr-stak-cpu.exe"
 
-$Path = ".\Bin\Cryptonight-CPU\xmr-stak-cpu.exe"
+$Path = ".\Bin\CryptoNight-CPU\xmr-stak-cpu.exe"
 $Uri = "https://github.com/fireice-uk/xmr-stak-cpu/releases/download/v1.3.0-1.5.0/xmr-stak-cpu-win64.zip"
 
 if ((Test-Path $Path) -eq $false) {Expand-WebRequest $Uri (Split-Path $Path) -ErrorAction SilentlyContinue}
 if ((Test-Path $Path_Threads) -eq $false) {Copy-Item (Split-Path $Path) (Split-Path $Path_Threads) -Recurse -Force -ErrorAction SilentlyContinue}
 
 $Name = (Get-Item $script:MyInvocation.MyCommand.Path).BaseName
-$Port = 3334 + ($ThreadIndex * 10000)
+$Port = 3334 + (0 * 10000)
 
 ([PSCustomObject]@{
         cpu_threads_conf = @([PSCustomObject]@{low_power_mode = $false; no_prefetch = $true; affine_to_cpu = $false}) * $Threads
@@ -20,9 +20,9 @@ $Port = 3334 + ($ThreadIndex * 10000)
         use_tls          = $false
         tls_secure_algo  = $true
         tls_fingerprint  = ""
-        pool_address     = "$($Pools.Cryptonight.Host):$($Pools.Cryptonight.Port)"
-        wallet_address   = "$($Pools.Cryptonight.User)"
-        pool_password    = "$($Pools.Cryptonight.Pass)"
+        pool_address     = "$($Pools.CryptoNight.Host):$($Pools.CryptoNight.Port)"
+        wallet_address   = "$($Pools.CryptoNight.User)"
+        pool_password    = "$($Pools.CryptoNight.Pass)"
         call_timeout     = 10
         retry_time       = 10
         giveup_limit     = 0
@@ -38,7 +38,7 @@ $Port = 3334 + ($ThreadIndex * 10000)
     Type      = "CPU"
     Path      = $Path_Threads
     Arguments = ''
-    HashRates = [PSCustomObject]@{Cryptonight = $Stats."$($Name)_Cryptonight_HashRate".Week}
+    HashRates = [PSCustomObject]@{CryptoNight = $Stats."$($Name)_CryptoNight_HashRate".Week}
     API       = "FireIce"
     Port      = $Port
     Wrap      = $false

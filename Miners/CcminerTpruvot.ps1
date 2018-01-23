@@ -1,7 +1,7 @@
-﻿. .\Include.ps1
+﻿using module ..\Include.psm1
 
 $Path = ".\Bin\NVIDIA-TPruvot\ccminer-x64.exe"
-$Uri = "https://github.com/tpruvot/ccminer/releases/download/v2.2-tpruvot/ccminer-x64-2.2.7z"
+$Uri = "https://github.com/tpruvot/ccminer/releases/download/2.2.4-tpruvot/ccminer-x64-2.2.4-cuda9.7z"
 
 $Commands = [PSCustomObject]@{
     "bitcore" = "" #Bitcore
@@ -24,9 +24,7 @@ $Commands = [PSCustomObject]@{
     "neoscrypt" = "" #NeoScrypt
     "nist5" = "" #Nist5
     "pascal" = "" #Pascal
-    "quark" = "" #Quark
-    "qubit" = "" #Qubit
-    "scrypt" = "" #Scrypt
+    "phi" = "" #PHI
     "sia" = "" #Sia
     "sib" = "" #Sib
     "skein" = "" #Skein
@@ -34,23 +32,22 @@ $Commands = [PSCustomObject]@{
     "timetravel" = "" #Timetravel
     "tribus" = "" #Tribus
     "veltor" = "" #Veltor
-    "x11" = "" #X11
     "x11evo" = "" #X11evo
     "x17" = "" #X17
-    "yescrypt" = "" #Yescrypt
+    #"yescrypt" = "" #Yescrypt
+    #"xevan" = "" #Xevan
 }
 
-$Name = (Get-Item $script:MyInvocation.MyCommand.Path).BaseName
+$Name = Get-Item $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty BaseName
 
-$Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
+$Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Where-Object {$Pools.(Get-Algorithm $_).Protocol -eq "stratum+tcp" <#temp fix#>} | ForEach-Object {
     [PSCustomObject]@{
         Type = "NVIDIA"
         Path = $Path
-        Arguments = "-a $_ -o stratum+tcp://$($Pools.(Get-Algorithm $_).Host):$($Pools.(Get-Algorithm $_).Port) -u $($Pools.(Get-Algorithm $_).User) -p $($Pools.(Get-Algorithm $_).Pass)$($Commands.$_)"
+        Arguments = "-a $_ -o $($Pools.(Get-Algorithm $_).Protocol)://$($Pools.(Get-Algorithm $_).Host):$($Pools.(Get-Algorithm $_).Port) -u $($Pools.(Get-Algorithm $_).User) -p $($Pools.(Get-Algorithm $_).Pass) --submit-stale$($Commands.$_)"
         HashRates = [PSCustomObject]@{(Get-Algorithm $_) = $Stats."$($Name)_$(Get-Algorithm $_)_HashRate".Week}
         API = "Ccminer"
         Port = 4068
-        Wrap = $false
         URI = $Uri
     }
 }

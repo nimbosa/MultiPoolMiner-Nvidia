@@ -1,78 +1,61 @@
-﻿using module ..\Include.psm1
+. .\Include.ps1
 
-param(
-    [alias("Wallet")]
-    [String]$BTC, 
-    [alias("WorkerName")]
-    [String]$Worker, 
-    [TimeSpan]$StatSpan
-)
-
-$Name = Get-Item $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty BaseName
-
-$Zpool_Request = [PSCustomObject]@{}
-
+$retries=1
+do {
 try {
-    $Zpool_Request = Invoke-RestMethod "http://www.zpool.ca/api/status" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-    $ZpoolCoins_Request = Invoke-RestMethod "http://www.zpool.ca/api/currencies" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+$Zpool_Request = Invoke-WebRequest "http://www.zpool.ca/api/status"
+-UseBasicParsing -timeoutsec 5 | ConvertFrom-Json
+#$Zpool_Request=get-content "..\zpool_request.json" | ConvertFrom-Json
 }
-catch {
-    Write-Log -Level Warn "Pool API ($Name) has failed. "
-    return
+catch {}
+$retries++
+} while ($Zpool_Request -eq $null -and $retries -le 5)
+if ($retries -gt 5) {
+WRITE-HOST 'ZPOOL API NOT RESPONDING...ABORTING'
+EXIT
 }
 
-if (($Zpool_Request | Get-Member -MemberType NoteProperty -ErrorAction Ignore | Measure-Object Name).Count -le 1) {
-    Write-Log -Level Warn "Pool API ($Name) returned nothing. "
-    return
-}
+$Name = (Get-Item $script:MyInvocation.MyCommand.Path).BaseName
 
-$Zpool_Regions = "us"
-$Zpool_Currencies = @("BTC") + ($ZpoolCoins_Request | Get-Member -MemberType NoteProperty -ErrorAction Ignore | Select-Object -ExpandProperty Name) | Select-Object -Unique | Where-Object {Get-Variable $_ -ValueOnly -ErrorAction SilentlyContinue}
+$Location = "US"
 
 $Zpool_Request | Get-Member -MemberType NoteProperty -ErrorAction Ignore | Select-Object -ExpandProperty Name | Where-Object {$Zpool_Request.$_.hashrate -gt 0} |ForEach-Object {
     $Zpool_Host = "mine.zpool.ca"
     $Zpool_Port = $Zpool_Request.$_.port
-    $Zpool_Algorithm = $Zpool_Request.$_.name
-    $Zpool_Algorithm_Norm = Get-Algorithm $Zpool_Algorithm
+    $Zpool_Algorithm = Get-Algorithm $Zpool_Request.$_.name
     $Zpool_Coin = ""
 
     $Divisor = 1000000
-
-    switch ($Zpool_Algorithm_Norm) {
-        "equihash" {$Divisor /= 1000}
-        "blake2s" {$Divisor *= 1000}
+	
+    switch ($Zpool_Algorithm) {
+        "equihash"  {$Divisor /= 1000}
+        "blake2s"   {$Divisor *= 1000}
         "blakecoin" {$Divisor *= 1000}
-        "decred" {$Divisor *= 1000}
-        "x11" {$Divisor *= 1000}
-        "quark" {$Divisor *= 1000}
-        "qubit" {$Divisor *= 1000}
-        "scrypt" {$Divisor *= 1000}
-        "keccak" {$Divisor *= 1000}
+        "decred"    {$Divisor *= 1000}
+        "x11"       {$Divisor *= 1000}
+        "quark"     {$Divisor *= 1000}
+        "qubit"     {$Divisor *= 1000}
+        "scrypt"    {$Divisor *= 1000}
+        "keccak"    {$Divisor *= 1000}
     }
 
-    if ((Get-Stat -Name "$($Name)_$($Zpool_Algorithm_Norm)_Profit") -eq $null) {$Stat = Set-Stat -Name "$($Name)_$($Zpool_Algorithm_Norm)_Profit" -Value ([Double]$Zpool_Request.$_.estimate_last24h / $Divisor) -Duration (New-TimeSpan -Days 1)}
-    else {$Stat = Set-Stat -Name "$($Name)_$($Zpool_Algorithm_Norm)_Profit" -Value ([Double]$Zpool_Request.$_.estimate_current / $Divisor) -Duration $StatSpan -ChangeDetection $true}
+    if ((Get-Stat -Name "$($Name)_$($Zpool_Algorithm)_Profit") -eq $null) {$Stat = Set-Stat -Name "$($Name)_$($Zpool_Algorithm_Norm)_Profit" -Value ([Double]$Zpool_Request.$_.estimate_last24h / $Divisor) -Duration (New-TimeSpan -Days 1)}
+    else {$Stat = Set-Stat -Name "$($Name)_$($Zpool_Algorithm)_Profit" -Value ([Double]$Zpool_Request.$_.estimate_current / $Divisor) -Duration $StatSpan -ChangeDetection $true}
 
-    $Zpool_Regions | ForEach-Object {
-        $Zpool_Region = $_
-        $Zpool_Region_Norm = Get-Region $Zpool_Region
-
-        $Zpool_Currencies | ForEach-Object {
-            [PSCustomObject]@{
-                Algorithm     = $Zpool_Algorithm_Norm
-                Info          = $Zpool_Coin
-                Price         = $Stat.Live
-                StablePrice   = $Stat.Week
-                MarginOfError = $Stat.Week_Fluctuation
-                Protocol      = "stratum+tcp"
-                Host          = "$Zpool_Algorithm.$Zpool_Host"
-                Port          = $Zpool_Port
-                User          = Get-Variable $_ -ValueOnly
-                Pass          = "$Worker,c=$_"
-                Region        = $Zpool_Region_Norm
-                SSL           = $false
-                Updated       = $Stat.Updated
-            }
+    if ($Wallet) {
+        [PSCustomObject]@{
+            Algorithm     = $Zpool_Algorithm
+            Info          = $Zpool_Coin
+            Price         = $Stat.Live
+            StablePrice   = $Stat.Week
+            MarginOfError = $Stat.Week_Fluctuation
+            Protocol      = "stratum+tcp"
+            Host          = $Zpool_Host
+            Port          = $Zpool_Port
+            User          = $Wallet
+            Pass          = "$WorkerName,c=BTC"
+            Location      = $Location
+            SSL           = $false
         }
     }
 }

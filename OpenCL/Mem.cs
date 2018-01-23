@@ -1,8 +1,8 @@
-using System;
-using System.Runtime.InteropServices;
-
 namespace OpenCl
 {
+    using System;
+    using System.Runtime.InteropServices;
+
     [Flags]
     public enum MemFlags : ulong
     {
@@ -188,7 +188,7 @@ namespace OpenCl
         public T[] Values
         {
             get {
-                //ErrorCode err;
+//                ErrorCode err;
                 var size = this.mem.Size;
 
                 var elemSize = Marshal.SizeOf<T>();

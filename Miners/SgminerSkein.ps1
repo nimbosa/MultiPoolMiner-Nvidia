@@ -1,4 +1,4 @@
-﻿. .\Include.ps1
+﻿using module ..\Include.psm1
 
 $Path = ".\Bin\Skein-AMD\sgminer.exe"
 $Uri = "https://github.com/miningpoolhub/sgminer/releases/download/5.3.1/Release.zip"
@@ -7,9 +7,9 @@ $Commands = [PSCustomObject]@{
     "skeincoin" = " --gpu-threads 2 --worksize 256 --intensity d" #Skein
 }
 
-$Name = (Get-Item $script:MyInvocation.MyCommand.Path).BaseName
+$Name = Get-Item $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty BaseName
 
-$Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
+$Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Where-Object {$Pools.(Get-Algorithm $_).Protocol -eq "stratum+tcp" <#temp fix#>} | ForEach-Object {
     [PSCustomObject]@{
         Type = "AMD"
         Path = $Path
@@ -17,7 +17,8 @@ $Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty 
         HashRates = [PSCustomObject]@{(Get-Algorithm $_) = $Stats."$($Name)_$(Get-Algorithm $_)_HashRate".Week}
         API = "Xgminer"
         Port = 4028
-        Wrap = $false
         URI = $Uri
+        PrerequisitePath = "$env:SystemRoot\System32\msvcr120.dll"
+        PrerequisiteURI = "http://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x64.exe"
     }
 }

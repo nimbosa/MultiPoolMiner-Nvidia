@@ -1,8 +1,8 @@
-﻿$DownloadList = $args
+﻿using module .\Include.psm1
+
+$DownloadList = $args
 
 if ($script:MyInvocation.MyCommand.Path) {Set-Location (Split-Path $script:MyInvocation.MyCommand.Path)}
-
-. .\Include.ps1
 
 $Progress = 0
 
@@ -31,25 +31,25 @@ $DownloadList | ForEach-Object {
         catch {
             $ProgressPreference = $ProgressPreferenceBackup
             Write-Progress -Activity "Downloader" -Status $Path -CurrentOperation "Acquiring Offline (Computer)" -PercentComplete $Progress
-            
+
             $ProgressPreference = "SilentlyContinue"
-            if ($URI) {Write-Warning "Cannot download $($Path) distributed at $($URI). "}
-            else {Write-Warning "Cannot download $($Path). "}
-            
+            if ($URI) {Write-Log -Level Warn "Cannot download $($Path) distributed at $($URI). "}
+            else {Write-Log -Level Warn "Cannot download $($Path). "}
+
             if ($Searchable) {
-                Write-Warning "Searching for $($Path). "
+                Write-Log -Level Warn "Searching for $($Path). "
 
                 $Path_Old = Get-PSDrive -PSProvider FileSystem | ForEach-Object {Get-ChildItem -Path $_.Root -Include (Split-Path $Path -Leaf) -Recurse -ErrorAction Ignore} | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
                 $Path_New = $Path
             }
-            
+
             if ($Path_Old) {
                 if (Test-Path (Split-Path $Path_New)) {(Split-Path $Path_New) | Remove-Item -Recurse -Force}
                 (Split-Path $Path_Old) | Copy-Item -Destination (Split-Path $Path_New) -Recurse -Force
             }
             else {
-                if ($URI) {Write-Warning "Cannot find $($Path) distributed at $($URI). "}
-                else {Write-Warning "Cannot find $($Path). "}
+                if ($URI) {Write-Log -Level Warn "Cannot find $($Path) distributed at $($URI). "}
+                else {Write-Log -Level Warn "Cannot find $($Path). "}
             }
         }
         $ProgressPreference = $ProgressPreferenceBackup

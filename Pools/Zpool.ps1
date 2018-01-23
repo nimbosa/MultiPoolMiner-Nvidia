@@ -19,7 +19,7 @@ $Name = (Get-Item $script:MyInvocation.MyCommand.Path).BaseName
 
 $Location = "US"
 
-$Zpool_Request | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
+$Zpool_Request | Get-Member -MemberType NoteProperty -ErrorAction Ignore | Select-Object -ExpandProperty Name | Where-Object {$Zpool_Request.$_.hashrate -gt 0} |ForEach-Object {
     $Zpool_Host = "mine.zpool.ca"
     $Zpool_Port = $Zpool_Request.$_.port
     $Zpool_Algorithm = Get-Algorithm $Zpool_Request.$_.name
@@ -32,14 +32,16 @@ $Zpool_Request | Get-Member -MemberType NoteProperty | Select-Object -ExpandProp
         "blake2s"   {$Divisor *= 1000}
         "blakecoin" {$Divisor *= 1000}
         "decred"    {$Divisor *= 1000}
-	"X11"       {$Divisor *= 1000}
-        "qubit"     {$Divisor *= 1000}
+        "x11"       {$Divisor *= 1000}
         "quark"     {$Divisor *= 1000}
+        "qubit"     {$Divisor *= 1000}
+        "scrypt"    {$Divisor *= 1000}
+        "keccak"    {$Divisor *= 1000}
     }
 
-    if ((Get-Stat -Name "$($Name)_$($Zpool_Algorithm)_Profit") -eq $null) {$Stat = Set-Stat -Name "$($Name)_$($Zpool_Algorithm)_Profit" -Value ([Double]$Zpool_Request.$_.estimate_last24h / $Divisor)}
-    else {$Stat = Set-Stat -Name "$($Name)_$($Zpool_Algorithm)_Profit" -Value ([Double]$Zpool_Request.$_.estimate_current / $Divisor)}
-	
+    if ((Get-Stat -Name "$($Name)_$($Zpool_Algorithm)_Profit") -eq $null) {$Stat = Set-Stat -Name "$($Name)_$($Zpool_Algorithm_Norm)_Profit" -Value ([Double]$Zpool_Request.$_.estimate_last24h / $Divisor) -Duration (New-TimeSpan -Days 1)}
+    else {$Stat = Set-Stat -Name "$($Name)_$($Zpool_Algorithm)_Profit" -Value ([Double]$Zpool_Request.$_.estimate_current / $Divisor) -Duration $StatSpan -ChangeDetection $true}
+
     if ($Wallet) {
         [PSCustomObject]@{
             Algorithm     = $Zpool_Algorithm

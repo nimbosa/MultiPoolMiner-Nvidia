@@ -1,16 +1,16 @@
-﻿. .\Include.ps1
+﻿using module ..\Include.psm1
 
 $Path = ".\Bin\Prospector\prospector.exe"
-$Uri = "https://github.com/semtexzv/Prospector/releases/download/0.0.10-ALPHA/prospector-0.0.10-ALPHA-win64.zip"
+$Uri = "https://github.com/semtexzv/Prospector/releases/download/0.0.13-ALPHA/prospector-0.0.13-ALPHA-win64.zip"
 
 $Commands = [PSCustomObject]@{
-    #"xmr" = @() #CryptoNight
+    "xmr" = @() #CryptoNight
     "eth" = @() #Ethash
     "sia" = @() #Sia
     "sigt" = @() #Skunk
 }
 
-$Name = (Get-Item $script:MyInvocation.MyCommand.Path).BaseName
+$Name = Get-Item $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty BaseName
 $Port = 42000
 
 $Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
@@ -47,17 +47,16 @@ enabled = true
 [gpus.$([array]::IndexOf(([OpenCl.Platform]::GetPlatformIDs() | Select-Object -ExpandProperty Vendor), 'NVIDIA Corporation'))-5]
 enabled = true
 [cpu]
-enabled = false" | Set-Content "$(Split-Path $Path)\$($Pools.$(Get-Algorithm $_).Name)_$(Get-Algorithm $_).toml" -Force -ErrorAction Stop
+enabled = false" | Set-Content "$(Split-Path $Path)\$($Pools.$(Get-Algorithm $_).Name)_$(Get-Algorithm $_)_$($Pools.$(Get-Algorithm $_).User).toml" -Force -ErrorAction Stop
         }
         
         [PSCustomObject]@{
             Type = "AMD", "NVIDIA"
             Path = $Path
-            Arguments = "-c $($Pools.$(Get-Algorithm $_).Name)_$(Get-Algorithm $_).toml"
+            Arguments = "-c $($Pools.$(Get-Algorithm $_).Name)_$(Get-Algorithm $_)_$($Pools.$(Get-Algorithm $_).User).toml"
             HashRates = [PSCustomObject]@{(Get-Algorithm $_) = $Stats."$($Name)_$(Get-Algorithm $_)_HashRate".Week}
             API = "Prospector"
             Port = $Port
-            Wrap = $false
             URI = $Uri
         }
 
@@ -65,11 +64,10 @@ enabled = false" | Set-Content "$(Split-Path $Path)\$($Pools.$(Get-Algorithm $_)
             [PSCustomObject]@{
                 Type = "AMD", "NVIDIA"
                 Path = $Path
-                Arguments = "-c $($Pools.$(Get-Algorithm $_).Name)_$(Get-Algorithm $_)2gb.toml"
+                Arguments = "-c $($Pools.$(Get-Algorithm $_).Name)_$(Get-Algorithm $_)2gb_$($Pools.$(Get-Algorithm $_).User).toml"
                 HashRates = [PSCustomObject]@{"$(Get-Algorithm $_)2gb" = $Stats."$($Name)_$(Get-Algorithm $_)2gb_HashRate".Week}
                 API = "Prospector"
                 Port = $Port
-                Wrap = $false
                 URI = $Uri
             }
         }

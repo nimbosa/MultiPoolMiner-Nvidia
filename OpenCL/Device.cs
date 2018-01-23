@@ -1,8 +1,8 @@
-using System;
-using System.Runtime.InteropServices;
-
 namespace OpenCl
 {
+    using System;
+    using System.Runtime.InteropServices;
+
     public class Device : HandleObject
     {
         private const uint CL_DEVICE_TYPE =                                   0x1000;
@@ -303,7 +303,7 @@ namespace OpenCl
         public Platform Platform
         {
             get {
-                var handle = Cl.GetInfo<IntPtr>(NativeMethods.clGetDeviceInfo, this.handle, CL_DEVICE_NAME);
+                var handle = Cl.GetInfo<IntPtr>(NativeMethods.clGetDeviceInfo, this.handle, CL_DEVICE_PLATFORM);
                 return new Platform(handle);
             }
         }
@@ -426,6 +426,11 @@ namespace OpenCl
                 res[i] = devices[i].handle;
             }
             return res;
+        }
+
+        internal static IntPtr[] ToIntPtr(Device device)
+        {
+            return new IntPtr[] { device.handle };
         }
     }
 }

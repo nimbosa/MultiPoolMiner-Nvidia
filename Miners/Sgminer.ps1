@@ -1,4 +1,4 @@
-﻿. .\Include.ps1
+﻿using module ..\Include.psm1
 
 $Path = ".\Bin\AMD-NiceHash\sgminer.exe"
 $Uri = "https://github.com/nicehash/sgminer/releases/download/5.6.1/sgminer-5.6.1-nicehash-51-windows-amd64.zip"
@@ -21,12 +21,9 @@ $Commands = [PSCustomObject]@{
     "lyra2rev2" = " --gpu-threads 2 --worksize 128 --intensity d" #Lyra2RE2
     #"lyra2z" = " --worksize 32 --intensity 18" #Lyra2z
     "myriadcoin-groestl" = " --gpu-threads 2 --worksize 64 --intensity d" #MyriadGroestl
-    "neoscrypt" = " --gpu-threads 1 --worksize 64 --intensity 11 --thread-concurrency 64" #NeoScrypt
+    "neoscrypt" = " --gpu-threads 1 --worksize 64 --intensity 15" #NeoScrypt
     #"nist5" = "" #Nist5
     "pascal" = "" #Pascal
-    "quarkcoin" = "" #Quark
-    "qubitcoin" = " --gpu-threads 2 --worksize 128 --intensity d" #Qubit
-    "zuikkis" = "" #Scrypt
     "sia" = "" #Sia
     "sibcoin-mod" = "" #Sib
     "skeincoin" = " --gpu-threads 2 --worksize 256 --intensity d" #Skein
@@ -34,15 +31,15 @@ $Commands = [PSCustomObject]@{
     #"timetravel" = "" #Timetravel
     #"tribus" = "" #Tribus
     #"veltor" = "" #Veltor
-    "darkcoin-mod" = " --gpu-threads 2 --worksize 128 --intensity d" #X11
     #"x11evo" = "" #X11evo
     #"x17" = "" #X17
     "yescrypt" = " --worksize 4 --rawintensity 256" #Yescrypt
+    #"xevan-mod" = " --intensity 15" #Xevan
 }
 
-$Name = (Get-Item $script:MyInvocation.MyCommand.Path).BaseName
+$Name = Get-Item $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty BaseName
 
-$Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
+$Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | Where-Object {$Pools.(Get-Algorithm $_).Protocol -eq "stratum+tcp" <#temp fix#>} | ForEach-Object {
     [PSCustomObject]@{
         Type = "AMD"
         Path = $Path
@@ -50,7 +47,6 @@ $Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty 
         HashRates = [PSCustomObject]@{(Get-Algorithm $_) = $Stats."$($Name)_$(Get-Algorithm $_)_HashRate".Week}
         API = "Xgminer"
         Port = 4028
-        Wrap = $false
         URI = $Uri
     }
 }

@@ -1,7 +1,7 @@
 ﻿using module ..\Include.psm1
 
 $Path = ".\Bin\CPU-JayDDee\cpuminer-aes-avx.exe"
-$Uri = "https://github.com/JayDDee/cpuminer-opt/files/1636873/cpuminer-opt-3.7.10-windows.zip"
+$Uri = "https://github.com/JayDDee/cpuminer-opt/files/1756603/cpuminer-opt-3.8.3.3-windows.zip"
 
 $Commands = [PSCustomObject]@{
     #"bitcore" = "" #Bitcore
@@ -24,7 +24,6 @@ $Commands = [PSCustomObject]@{
     #"neoscrypt" = "" #NeoScrypt
     #"nist5" = "" #Nist5
     #"pascal" = "" #Pascal
-    #"sia" = "" #Sia
     #"sib" = "" #Sib
     #"skein" = "" #Skein
     #"skunk" = "" #Skunk

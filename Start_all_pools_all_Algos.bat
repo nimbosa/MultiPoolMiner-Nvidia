@@ -14,6 +14,5 @@ start pwsh -noexit -executionpolicy bypass -command "& .\reader.ps1 -log '^((?!M
 
 pwsh -noexit -executionpolicy bypass -windowstyle maximized -command "%command%"
 powershell -version 5.0 -noexit -executionpolicy bypass -windowstyle maximized -command "%command%"
-pwsh -noexit -executionpolicy bypass -windowstyle maximized -command "%command%"
 
 pause

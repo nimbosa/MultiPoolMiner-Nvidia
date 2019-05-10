@@ -27,7 +27,7 @@ $DownloadList | ForEach-Object {
             else {
                 Expand-WebRequest $URI $Path -ErrorAction Stop
             }
-            Write-Log -Level Verbose "Installed $($Path). "
+            Write-Log -Level Verbose "Installed miner binary ($($Path)). "
         }
         catch {
             $ProgressPreference = $ProgressPreferenceBackup
@@ -58,4 +58,6 @@ $DownloadList | ForEach-Object {
     }
 }
 
-Write-Progress -Activity "Downloader" -Completed
+Write-Progress -Activity "Downloader" -Status "Completed" -Completed
+
+return

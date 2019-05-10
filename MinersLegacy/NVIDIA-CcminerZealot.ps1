@@ -15,6 +15,7 @@ $Port = "40{0:d2}"
 
 $Commands = [PSCustomObject]@{
     "aergo"      = "" #Aergo, new in 1.11
+    "aeriumx"    = "" #AeriumX, new in 1.11
     "bitcore"    = "" #Bitcore
     "bcd"        = "" #Bitcoin Diamond, new in 1.20
     "c11"        = "" #C11, new in 1.11
@@ -23,6 +24,7 @@ $Commands = [PSCustomObject]@{
     "phi"        = "" #PHI
     "phi2"       = "" #Phi2
     "poly"       = "" #Polytimos
+    "polytimos"  = "" #Polytimos
     "renesis"    = "" #Renesis
     "skunk"      = "" #Skunk, new in 1.11
     "sonoa"      = "" #SONOA, new in 1.12
@@ -32,6 +34,7 @@ $Commands = [PSCustomObject]@{
     "x16s"       = "" #Pigeon
     "x17"        = "" #X17
     "xevan"      = "" #Xevan, new in 1.09a
+    "vit"        = "" #Vitality, new in 1.09a
 }
 
 $CommonCommands = ""

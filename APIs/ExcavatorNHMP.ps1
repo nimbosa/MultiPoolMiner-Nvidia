@@ -5,8 +5,7 @@ class ExcavatorNHMP : Miner {
     hidden [DateTime]$BeginTime = 0
     hidden [DateTime]$EndTime = 0
     hidden [Array]$Workers = @()
-    hidden [Int32]$Service_Id = 0
-
+    
     static [PSCustomObject]InvokeRequest($Miner, $Request) {
         $Server = "localhost"
         $Timeout = 10 #seconds
@@ -34,13 +33,15 @@ class ExcavatorNHMP : Miner {
     }
 
     static WriteMessage($Miner, $Message) {
-       
-        $Request = @{id = 1; method = "message"; params = @($Message)}
-        $Data = [ExcavatorNHMP]::InvokeRequest($Miner, $Request)
+        $Data = [ExcavatorNHMP]::InvokeRequest($Miner, @{id = 1; method = "message"; params = @($Message)})
     }
 
     [String[]]GetProcessNames() {
         return @()
+    }
+
+    [String]GetCommandLineParameters() {
+        return $this.Arguments
     }
 
     hidden StartMining() {
@@ -60,24 +61,21 @@ class ExcavatorNHMP : Miner {
         [ExcavatorNHMP]::WriteMessage($this, "Starting worker for miner $($this.Name)... ")
         
         if ($this.Workers) {
-            if ([ExcavatorNHMP]::Service.Id -eq $this.Service_Id) {
+            if ([ExcavatorNHMP]::Service.ProcessId -eq $this.ProcessId) {
                 #Free all workers for this device
-                $Request = @{id = 1; method = "workers.free"; params = $this.Workers}
-                $Data = [ExcavatorNHMP]::InvokeRequest($this, $Request)
+                $Data = [ExcavatorNHMP]::InvokeRequest($this, @{id = 1; method = "workers.free"; params = @($this.Workers)})
             }
         }
-
         #Subscribe to Nicehash        
         $Request = ($this.Arguments | ConvertFrom-Json) | Where-Object Method -Like "subscribe" | Select-Object -Index 0
         $Data = [ExcavatorNHMP]::InvokeRequest($this, $Request)
 
         #Build list of all algorithms
-        $Request = @{id = 1; method = "algorithm.list"; params = @()}
-        $Data = [ExcavatorNHMP]::InvokeRequest($this, $Request)
+        $Data = [ExcavatorNHMP]::InvokeRequest($this, @{id = 1; method = "algorithm.list"; params = @()})
         $Algorithms = @($Data.algorithms.name)
 
         ($this.Arguments | ConvertFrom-Json) | Where-Object Method -Like "*.add" | ForEach-Object {
-            $Argument = $_
+            $Argument = @($_)
 
             switch ($Argument.method) {
                 #Add algorithms so it will receive new jobs
@@ -126,34 +124,29 @@ class ExcavatorNHMP : Miner {
         $this.Status = "Idle"
 
         if ($this.Workers) {
-            if ([ExcavatorNHMP]::Service.Id -eq $this.Service_Id) {
+            if ([ExcavatorNHMP]::Service.ProcessId -eq $this.ProcessId) {
                 
                 #Get algorithm list
-                $Request = @{id = 1; method = "algorithm.list"; params = @()}
-                $Data = [ExcavatorNHMP]::InvokeRequest($this, $Request)
+                $Data = [ExcavatorNHMP]::InvokeRequest($this, @{id = 1; method = "algorithm.list"; params = @()})
                 $Algorithms = @($Data.algorithms.Name)
 
                 #Free workers for this device
-                $Request = @{id = 1; method = "workers.free"; params = $this.Workers}
-                $HashRate = [PSCustomObject]@{}
-                $Data = [ExcavatorNHMP]::InvokeRequest($this, $Request)
+                $Data = [ExcavatorNHMP]::InvokeRequest($this, @{id = 1; method = "workers.free"; params = @($this.Workers)})
 
                 #Worker stopped message
                 [ExcavatorNHMP]::WriteMessage($this, "Worker [$($this.Workers -join " ")] for miner $($this.Name) stopped. ")
 
                 #Get worker list
-                $Request = @{id = 1; method = "worker.list"; params = @()}
-                $Data = [ExcavatorNHMP]::InvokeRequest($this, $Request)
+                $Data = [ExcavatorNHMP]::InvokeRequest($this, @{id = 1; method = "worker.list"; params = @()})
                 $Active_Algorithms = $Algorithms | Select-Object -Unique |  Where-Object {$Data.workers.algorithms.name -icontains $_}
                 $Unused_Algorithms = $Algorithms | Select-Object -Unique |  Where-Object {$Data.workers.algorithms.name -inotcontains $_}
 
-                if ($Unused_Algorithms) {
-                    #Remove unused algorithms
-                    $Request = @{id = 1; method = "algorithm.remove"; params = @($Unused_Algorithms)}
-                    $Data = [ExcavatorNHMP]::InvokeRequest($this, $Request)
+                $Unused_Algorithms | ForEach-Object {
+                    #Remove unused algorithm
+                    $Data = [ExcavatorNHMP]::InvokeRequest($this, @{id = 1; method = "algorithm.remove"; params = @($_)})
 
                     #Algorithm cleared message
-                    [ExcavatorNHMP]::WriteMessage($this, "Unused algorithm [$($Unused_Algorithms -join "; ")] cleared. ")
+                    [ExcavatorNHMP]::WriteMessage($this, "Unused algorithm [$_] cleared. ")
                 }
 
                 if (-not $Active_Algorithms) {
@@ -165,7 +158,6 @@ class ExcavatorNHMP : Miner {
                         #Quit miner
                         $Request = @{id = 1; method = "quit"; params = @()}
                     }
-                    $HashRate = [PSCustomObject]@{}
                     $Data = [ExcavatorNHMP]::InvokeRequest($this, $Request)
                 }
             }
@@ -225,21 +217,23 @@ class ExcavatorNHMP : Miner {
             $Timeout = 1
             $Request = @{id = 1; method = "algorithm.list"; params = @()} | ConvertTo-Json -Compress
             $Response = ""
-            for ($WaitForLocalhost = 0; $WaitForLocalhost -le 10; $WaitForLocalhost++) {
+            for ($WaitForLocalhost = 0; $WaitForLocalhost -le 20; $WaitForLocalhost++) {
                 try {
                     $Response = Invoke-TcpRequest $Server $this.Port $Request $Timeout -ErrorAction Stop
                     $Data = $Response | ConvertFrom-Json -ErrorAction Stop
+                    [ExcavatorNHMP]::Service | Add-Member ProcessId (Get-CIMInstance CIM_Process | Where-Object {$_.ExecutablePath -eq $this.path -and $_.CommandLine -like "*$((Get-Job -Id ([ExcavatorNHMP]::Service.Id)).CommandLine)*"}).ProcessId
                     break
                 }
                 catch {
                 }
+                Sleep -Milliseconds 100
             }
         }
 
-        if ($this.Service_Id -ne [ExcavatorNHMP]::Service.Id) {
+        if ($this.ProcessId -ne [ExcavatorNHMP]::Service.ProcessId) {
             $this.Status = "Idle"
             $this.Workers = @()
-            $this.Service_Id = [ExcavatorNHMP]::Service.Id
+            $this.ProcessId = [ExcavatorNHMP]::Service.ProcessId
             $this.BeginTime = (Get-Date).ToUniversalTime()
         }
 
@@ -258,7 +252,6 @@ class ExcavatorNHMP : Miner {
                 if (-not ([ExcavatorNHMP]::Service | Get-Job -ErrorAction SilentlyContinue)) {
                     [ExcavatorNHMP]::Service = $null
                 }
-
                 $this.Status = $Status
             }
         }
@@ -273,7 +266,6 @@ class ExcavatorNHMP : Miner {
         #Get list of all active workers
         $Request = @{id = 1; method = "worker.list"; params = @()} | ConvertTo-Json -Compress
         $Response = ""
-
         try {
             $Response = Invoke-TcpRequest $Server $this.Port $Request $Timeout -ErrorAction Stop
             $Data = $Response | ConvertFrom-Json -ErrorAction Stop
@@ -288,7 +280,7 @@ class ExcavatorNHMP : Miner {
         }
         catch {
             if ($this.GetActiveTime().TotalSeconds -gt 60) {
-                Write-Log -Level Error "Failed to connect to miner ($($this.Name)). "
+                Write-Log -Level Error "Failed to connect to miner ($($this.Name)) [ProcessId: $($this.ProcessId)]. "
                 $this.SetStatus("Failed")
             }
             return @($Request, $Response)
@@ -296,23 +288,22 @@ class ExcavatorNHMP : Miner {
 
         #Get hash rates per algorithm
         $HashRate = [PSCustomObject]@{}
+        $HashRate_Name = ""
+        $HashRate_Value = [Int64]0
         $Data.workers.algorithms.name | Select-Object -Unique | ForEach-Object {
             $Workers = $Data.workers | Where-Object {$this.workers -match $_.Worker_id}
             $Algorithm = $_
 
             $HashRate_Name = [String](($this.Algorithm -replace "-NHMP") -match (Get-Algorithm $Algorithm))
             if (-not $HashRate_Name) {$HashRate_Name = [String](($this.Algorithm -replace "-NHMP") -match "$(Get-Algorithm $Algorithm)*")} #temp fix
-            $HashRate_Value = [Double](($Workers.algorithms | Where-Object {$_.name -eq $Algorithm}).speed | Measure-Object -Sum).Sum
-            if ($HashRate_Name -and $HashRate_Value -gt 0) {
-                $HashRate | Add-Member @{"$($HashRate_Name)-NHMP" = [Int64]$HashRate_Value}
-            }
+            $HashRate_Value = [Int64](($Workers.algorithms | Where-Object {$_.name -eq $Algorithm}).speed | Measure-Object -Sum).Sum
+
+            if ($HashRate_Name -and $HashRate_Value -GT 0) {$HashRate | Add-Member @{$HashRate_Name = [Int64]$HashRate_Value}}
         }
-
         #Print algorithm speeds
-        $Request = @{id = 1; method = "algorithm.print.speeds"; params = @()}
-        $Data = [ExcavatorNHMP]::InvokeRequest($this, $Request)
+        $Data = [ExcavatorNHMP]::InvokeRequest($this, @{id = 1; method = "algorithm.print.speeds"; params = @()})
 
-        if ($HashRate) {
+        if ($HashRate | Get-Member -MemberType NoteProperty -ErrorAction Ignore | Select-Object -ExpandProperty Name) {
             $this.Data += [PSCustomObject]@{
                 Date     = (Get-Date).ToUniversalTime()
                 Raw      = $Response

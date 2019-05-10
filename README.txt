@@ -17,7 +17,7 @@ TWITTER: @multipoolminer
 Licensed under the GNU General Public License v3.0
 Permissions of this strong copyleft license are conditioned on making available complete source code of licensed works and modifications, which include larger works using a licensed work, under the same license. Copyright and license notices must be preserved. Contributors provide an express grant of patent rights. https://github.com/MultiPoolMiner/MultiPoolMiner/blob/master/LICENSE
 
-README.txt - updated on 06/10/2018 (dd/mm/yyyy) - latest version can be found here: https://github.com/MultiPoolMiner/MultiPoolMiner/blob/master/README.txt
+README.txt - updated on 08/11/2018 (dd/mm/yyyy) - latest version can be found here: https://github.com/MultiPoolMiner/MultiPoolMiner/blob/master/README.txt
 
 ====================================================================
 
@@ -90,6 +90,10 @@ Listed in alphabetical order. Note: For basic operation not all parameters must 
     By default this feature is turned off. To enable add '-CreateMinerInstancePerDeviceModel' to your start batch file.
     Note that this will trigger some benchmarking.
 	
+-CoinName [Zcash, ZeroCoin etc.]
+	Limit mining to the listed coins only; this is also a per-pool setting (see Advanced Configuration)
+	Note: Only the pools ending in ...Coins expose the coin name in their API.
+
 -ConfigFile [Path\ConfigFile.txt]
 	The default config file name is '.\Config.txt'
 	If the config file does not exist MPM will create a config file with default values. If the file name does not have an extension MPM will add .txt file name extension.
@@ -111,8 +115,12 @@ Listed in alphabetical order. Note: For basic operation not all parameters must 
 	Donation of mining time in minutes per day to aaronsace. Default is 24, minimum is 10 minutes per day (less than 0.7% fee). The downloaded miner software can have their own donation system built in. Check the readme file of the respective miner used for more details.
 	
 -ExcludeAlgorithm
-	Similar to the '-Algorithm' command but it is used to exclude unwanted algorithms. Supported algorithms sorted by pool can be found at https://multipoolminer.io/algorithms
-	
+	Similar to the '-Algorithm' command but it is used to exclude unwanted algorithms. Supported algorithms sorted by pool can be found at https://multipoolminer.io/algorithms; this is also a per-pool setting (see Advanced Configuration)
+
+-ExcludeCoinName [Zcash, ZeroCoin etc.]
+	Similar to the '-CoinName' command but it is used to exclude selecgted coins from being mined; this is also a per-pool setting (see Advanced Configuration)	
+	Note: Only the pools ending in ...Coins expose the coin name in their API.
+
 -ExcludeDeviceName
 	Simlar to the '-DeviceName' command but it is used to exclude unwanted devices for mining.  [CPU, GPU, GPU#02, AMD, NVIDIA, AMD#02, OpenCL#03#02 etc.]
 
@@ -122,6 +130,10 @@ Listed in alphabetical order. Note: For basic operation not all parameters must 
 	
 -ExcludePoolName
 	Similar to the '-PoolName' command but it is used to exclude unwanted mining pools.
+
+-IgnoreFees
+    Beginning with version 3.1.0 MPM makes miner and pool fees part of the profitability calculation. This will lead to somewhat lower, but more accurate profit estimates.
+    Set this flag to ignore miner and pool fees (as older versions did)
 
 -Interval
 	MultiPoolMiner's update interval in seconds. This is a universal timer for running the entire script (downloading/processing APIs, calculation etc).  It also determines how long a benchmark is run for each miner file (miner/algorithm/coin). Default is 60.
@@ -167,14 +179,14 @@ Listed in alphabetical order. Note: For basic operation not all parameters must 
       WebSite: https://www.nicehash.com/
       Payout in BTC (Bitcoin address must be provided using the '-Wallet' command)
 
+    ## NLPool
+      WebSite: https://www.nlpool.nl/
+      Payout in BTC (Bitcoin address must be provided using the -wallet command, see below), or any currency available in API (Advanced configuration via config file required, see below)
+      Pool allows mining selected coins only, e.g mine only ZClassic (Advanced configuration via Config.txt required, see below)
+
     ## YiiMP
       WebSite: http://yiimp.eu/
       Note: Yiimp is not an auto-exchange pool. Do NOT mine with a BTC address. A separate wallet address for each mined currency must be provided in config file (Advanced configuration via config file required, see below)
-
-    ## ZergPool / ZergPoolCoins
-      WebSite: http://zergpool.eu
-      Payout in BTC (Bitcoin address must be provided using the '-Wallet' command), or any currency available in API (Advanced configuration via config file required, see below)
-      Pool allows mining selected coins only, e.g mine only ZClassic (Advanced configuration via config file required, see below)
 
     ## Zpool
       WebSite: http://www.zpool.ca/
@@ -183,8 +195,12 @@ Listed in alphabetical order. Note: For basic operation not all parameters must 
 
       IMPORTANT: For the list of default configured pools consult 'start.bat.' This does not rule out other pools to be included. Selecting multiple pools is allowed and will be used on a failover basis OR if first specified pool does not support that algorithm/coin. See the '-Algorithm' command for further details and example.*
 
+-PricePenaltyFactor
+    Default factor with which MPM multiplies the prices reported by ALL pools. The default value is 1 (valid range is from 0.1 to 1.0). 
+    E.g. If you feel that the general profit estimations as reported by MPM are too high, e.g. %20, then set '-PricePenaltyFactor' to 0.8. 
+    This is also settable per pool - see advanced configuration below. The value set on the pool level will override this global setting.
 
--Proxy
+    -Proxy
 	Specify your proxy address if applicable, i.e http://192.0.0.1:8080
 
 -Region [Europe/US/Asia]
@@ -194,7 +210,7 @@ Listed in alphabetical order. Note: For basic operation not all parameters must 
 	By default MPM hides most miner windows as to not steal focus (Miners of API type 'Wrapper' will remain hidden). All miners write their output to files in the Log folder.
 
 -ShowPoolBalances
-	Display the balances of all enabled pools (excluding those that are excluded with '-ExcludeMinerName') on the summary screen and in the web GUI.
+	Display the balances of all enabled pools (excluding those that are excluded with 'ExcludeMinerName') on the summary screen and in the web GUI.
 	Note: Only balances in BTC are listed, other currencies are currently not supported.
 
 -ShowPoolBalancesDetails
@@ -209,6 +225,10 @@ Listed in alphabetical order. Note: For basic operation not all parameters must 
 
 -SwitchingPrevention
 	Since version 2.6, the delta value (integer) that was used to determine how often MultiPoolMiner is allowed to switch, is now user-configurable on a scale of 1 to infinity on an intensity basis. Default is 1 (Start.bat default is 2). Recommended values are 1-10 where 1 means the most frequent switching and 10 means the least switching. Please note setting this value to zero (0) will not turn this function off! Please see further explanation in MULTIPOOLMINER'S LOGIC section below. 
+
+-UseDeviceNameForStatsFileNaming
+    Miner speed stat files will use the device model as part of the file name. This keeps benchmark results valid when new cards of a different model are added or when the the order of the cards are change. 
+    E.g. CcminerNevermore-GPU#00-GPU#02_Lyra2z_HashRate.txt -> NVIDIA-CcminerNevermore-2xGtx1080ti_Lyra2z_HashRate.txt
 
 -UseFastestMinerPerAlgoOnly
 	Use only use fastest miner per algo and device index. E.g. if there are 2 or more miners available to mine the same algo, only the fastest will ever be used, the slower ones will also be hidden in the summary screen.
@@ -244,15 +264,13 @@ SAMPLE USAGE (check "start.bat" file in root folder):
 @if not "%GPU_SINGLE_ALLOC_PERCENT%"=="100" (setx GPU_SINGLE_ALLOC_PERCENT 100) > nul
 @if not "%CUDA_DEVICE_ORDER%"=="PCI_BUS_ID" (setx CUDA_DEVICE_ORDER PCI_BUS_ID) > nul
 
-@set "command=& .\multipoolminer.ps1 -Wallet 1Q24z7gHPDbedkaWDTFqhMF8g7iHMehsCb -UserName aaronsace -WorkerName multipoolminer -Region europe -Currency btc,usd,eur -DeviceName amd,nvidia,cpu -PoolName miningpoolhubcoins,zpool,nicehash -Algorithm blake2s,cryptonightV7,cryptonightheavy,decrednicehash,ethash,ethash2gb,ethash3gb,equihash,keccak,lbry,lyra2re2,lyra2z,m7m,neoscrypt,pascal,sib,skein,skunk,x16r -Donate 24 -Watchdog -MinerStatusURL https://multipoolminer.io/monitor/miner.php -SwitchingPrevention 2"
+@set "command=& .\multipoolminer.ps1 -Wallet 1Q24z7gHPDbedkaWDTFqhMF8g7iHMehsCb -UserName aaronsace -WorkerName multipoolminer -Region europe -Currency btc,usd,eur -DeviceName amd,nvidia,cpu -PoolName miningpoolhubcoins,zpool,nicehash -Algorithm blake2s,cryptonightV7,cryptonight8,cryptonightheavy,decrednicehash,ethash,ethash2gb,ethash3gb,equihash,keccak,lbry,lyra2re2,lyra2z,m7m,neoscrypt,pascal,sib,skein,skunk,x16r -Donate 24 -Watchdog -MinerStatusURL https://multipoolminer.io/monitor/miner.php -SwitchingPrevention 2"
 
 start pwsh -noexit -executionpolicy bypass -command "& .\reader.ps1 -log 'MultiPoolMiner_\d\d\d\d-\d\d-\d\d\.txt' -sort '^[^_]*_' -quickstart"
 start pwsh -noexit -executionpolicy bypass -command "& .\reader.ps1 -log '^((?!MultiPoolMiner_.+\.txt).)*$' -sort '^[^_]*_' -quickstart"
 
 pwsh -noexit -executionpolicy bypass -windowstyle maximized -command "%command%"
 powershell -version 5.0 -noexit -executionpolicy bypass -windowstyle maximized -command "%command%"
-msiexec -i https://github.com/PowerShell/PowerShell/releases/download/v6.0.4/PowerShell-6.0.4-win-x64.msi -qb!
-pwsh -noexit -executionpolicy bypass -windowstyle maximized -command "%command%"
 
 pause
 
@@ -280,7 +298,7 @@ Warning: The JSON file structure is very fragile - every comma counts, so be car
 Sample content of 'Config.txt'
 
 {
-    "VersionCompatibility":  "3",
+    "VersionCompatibility":  "3.1.0",
     "Wallet":  "$Wallet",
     "UserName":  "$UserName",
     "WorkerName":  "$WorkerName",
@@ -290,35 +308,40 @@ Sample content of 'Config.txt'
     "Region":  "$Region",
     "SSL":  "$SSL",
     "DeviceName":  "$DeviceName",
-    "DisableDualMining":  "$DisableDualMining",
-    "Algorithm":  "$Algorithm",
-    "MinerName":  "$MinerName",
-    "PoolName":  "$PoolName",
-    "ExcludeAlgorithm":  "$ExcludeAlgorithm",
     "ExcludeDeviceName":  "$ExcludeDeviceName",
+    "MinerName":  "$MinerName",
     "ExcludeMinerName":  "$ExcludeMinerName",
+    "Algorithm":  "$Algorithm",
+    "ExcludeAlgorithm":  "$ExcludeAlgorithm",
+    "PoolName":  "$PoolName",
     "ExcludePoolName":  "$ExcludePoolName",
+	"CoinName":  "$CoinName",
+	"ExcludeCoinName":  "$ExcludeCoinName",
     "Currency":  "$Currency",
     "Donate":  "$Donate",
     "Proxy":  "$Proxy",
     "Delay":  "$Delay",
     "Watchdog":  "$Watchdog",
+    "DisableDualMining":  "DisableDualMining",
     "MinerStatusUrl":  "$MinerStatusUrl",
     "MinerStatusKey":  "$MinerStatusKey",
     "SwitchingPrevention":  "$SwitchingPrevention",
     "ShowMinerWindow":  "$ShowMinerWindow",
     "UseFastestMinerPerAlgoOnly":  "$UseFastestMinerPerAlgoOnly",
-    "IgnoreCosts":  "$IgnoreCosts",
+    "IgnoreFees":  "$IgnoreFees",
     "ShowPoolBalances":  "$ShowPoolBalances",
     "ShowPoolBalancesDetails":  "$ShowPoolBalancesDetails",
     "ShowPoolBalancesExcludedPools":  "$ShowPoolBalancesExcludedPools",
     "CreateMinerInstancePerDeviceModel":  "$CreateMinerInstancePerDeviceModel",
+    "UseDeviceNameForStatsFileNaming":  "$UseDeviceNameForStatsFileNaming",
+    "PricePenaltyFactor":  "$PricePenaltyFactor",
     "Pools":  {
 
               },
     "Miners":  {
 
                }
+
 }
 
 
@@ -328,10 +351,44 @@ Advanced configuration for Pools
 
 Settings for each configured pool are stored in its own subsection. These settings are only valid for the named pool.
 
+CoinName [Zcash, ZeroCoin etc.]
+Only mine the selected coins at the specified pool.
+
+E.g. you do not want to mine Zcash & ZeroCoin at Zpool:
+    "ZpoolCoins": {
+		"CoinName":  [
+			"Zcash",
+			"ZeroCoin"
+		]
+    }
+Note: Only the pools ending in ...Coins expose the coin name in their API.
+
+ExcludeAlgorithm
+Do not use the configured algorithms for mining at the specified pool.
+
+E.g. you do not want to mine Equihash and Ethash2GB at Zpool:
+    "ZpoolCoins": {
+		"ExcludeAlgorithm":  [
+			"Equihash",
+			"Ethash2Gb"
+		]
+	}
+
+ExcludeCoinName [Zcash, ZeroCoin etc.]
+Exclude selected coins from being mined at the specified pool.
+
+E.g. you do not want to mine Zcash & ZeroCoin at Zpool:
+    "ZpoolCoins": {
+		"ExcludeCoinName":  [
+			"Zcash",
+			"ZeroCoin"
+		]
+    }
+Note: Only the pools ending in ...Coins expose the coin name in their API.
+
 To change payout currency of a pool
 
 If a pool allows payout in another currency than BTC you can change this.
-Note: Not all pools support this, for more information consult the pools web page
 
 For each pool you can statically add a section similar to this (see http://localhost:3999/config):
 
@@ -349,8 +406,20 @@ E.g. to change the payout currency for Zpool to LiteCoin replace the line for BT
         "LTC": "<YOUR_LITECOIN_ADDRESS>",
         "Worker": "$WorkerName"
     }
+Note: Not all pools support this, for more information consult the pools web page
 
+PricePenaltyFactor
 
+If you feel that a pool is exaggerating its estimations then set a penalty factor to lower projected projected calculations.
+E.g. You feel that Zpool is exaggerating its estimations by 10% - Set PricePenaltyFactor to 0.9:
+
+    "Zpool": {
+        ...
+        "PricePenaltyFactor":  0.9,
+        ...
+    }
+
+    
 Advanced configuration for Miners
 
 Settings for each configured miner are stored in its own subsection. These settings are only valid for the named miner.
@@ -360,6 +429,30 @@ Advanced general configuration
 
 Settings in this section affect the overall behaviour of MPM and will take precedence over command line parameters.
 
+Ignore pool and miner fees
+
+Beginning with version 3.1.0 MPM makes miner and pool fees part of the profitability calculation. This will lead to somewhat lower, but more accurate profit estimates.
+
+To ignore miner and pool fees (as older versions did) add '"IgnoreFees":  true' to the general section:
+
+{
+    ...
+    "SwitchingPrevention":  "$SwitchingPrevention",
+    "IgnoreFees":  true,
+    ...
+}
+
+PricePenaltyFactor
+
+Default factor with which MPM multiplies the prices reported by ALL pools. The default value is 1 (valid range is from 0.1 to 1.0). 
+E.g. You feel that MPM is exaggerating its profit estimations by 20% for ALL pools - Set PricePenaltyFactor to 0.8:
+
+}
+    ...
+    "SwitchingPrevention":  "$SwitchingPrevention",
+    "PricePenaltyFactor":  0.8,
+    ...
+}
 
 To show miner windows
 
@@ -383,6 +476,7 @@ MPM can gather the pending BTC balances from all configured pools.
 To display the balances of all enabled pools (excluding those that are excluded with '-ExcludeMinerName') on the summary screen and in the web GUI add '"ShowPoolBalances":  true' to the general section:
 {
     ...
+    "SwitchingPrevention":  "$SwitchingPrevention",
 	"ShowPoolBalances":  true
     ...
 }
@@ -400,10 +494,23 @@ to the general section:
 To display the balances of all pools (including those that are excluded with '-ExcludeMinerName') on the summary screen and in the web GUI add '"ShowPoolBalances":  true' to the general section:
 {
     ...
+    "SwitchingPrevention":  "$SwitchingPrevention",
 	"ShowPoolBalancesExcludedPools":  true
     ...
 }
 Note: Only balances in BTC are listed, other currencies are currently not supported.
+
+
+Miner speed stats file naming
+
+Beginning with MPM 3.1 all miners definition files support an alternate naming scheme for miner speed stat files. They will use the device model as part of the file name. This keeps benchmark results valid when new cards of a different model are added or when the the order of the cards are change. E.g. CcminerNevermore-GPU#00-GPU#02_Lyra2z_HashRate.txt -> NVIDIA-CcminerNevermore-2xGtx1080ti_Lyra2z_HashRate.txt
+To use this alternate naming scheme add '"UseDeviceNameForStatsFileNaming": true' to the general section:
+{
+    ...
+    "SwitchingPrevention":  "$SwitchingPrevention",
+    "UseDeviceNameForStatsFileNaming": true,
+    ...
+}	
 
 
 
